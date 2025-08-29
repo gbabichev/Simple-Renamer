@@ -1,12 +1,12 @@
 //
 //  AboutView.swift
-//  Gerobe Renamer
+//  Simple Renamer
 //
 //  Created by George Babichev on 7/21/25.
 //
 
 /*
- AboutView.swift provides the About screen for the Gerobe Renamer app.
+ AboutView.swift provides the About screen for the Simple Renamer app.
  It displays app branding, version info, copyright, and a link to the author’s GitHub.
  This view is intended to inform users about the app and its creator.
 */

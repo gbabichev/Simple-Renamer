@@ -1,6 +1,6 @@
 //
 //  MainView.swift
-//  Gerobe Renamer
+//  Simple Renamer
 //
 //  Created by George Babichev on 7/16/25.
 //

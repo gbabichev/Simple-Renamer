@@ -18,6 +18,7 @@ Say hello to **Simple Renamer** – the friendly little macOS app that makes bat
 - 🖱️ **Drag & Drop** – Drop in a folder of files and watch them line up for renaming.  
 - 🔍 **Live Preview** – See exactly how files will look before you commit.  
 - 📝 **Templates** – Build your own patterns (`Holiday-###`, `Project_[date]`, etc.).  
+- 📤 **JSON Support** - Export & Import templates with JSON.
 - 🔢 **Counters & Sequences** – Auto-number files like a pro. Automatic or manual padding & automatic / manual sequence starts. 
 - 🔄 **Find & Replace** – Fix typos or swap out words across a batch.  
 - 💻 **SwiftUI Native** – Lightweight, modern, and built for macOS.  
@@ -29,7 +30,7 @@ Say hello to **Simple Renamer** – the friendly little macOS app that makes bat
 1. Launch **Simple Renamer**.  
 2. Open (or drag) your files (or folders) into the window.  
 3. Preview the new names instantly.  
-4. Smash that ✅ button and enjoy your newly renamed files.  
+4. Process! ✅ 
 
 ---
 
@@ -62,7 +63,7 @@ Download from Releases. It's signed & notarized!
 Clone the repo and build with Xcode:
 
 ```bash
-git clone https://github.com/yourusername/simple-renamer.git
+git clone https://github.com/gbabichev/simple-renamer.git
 cd simple-renamer
 open SimpleRenamer.xcodeproj
 ```
