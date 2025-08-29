@@ -22,6 +22,7 @@ struct Simple_RenamerApp: App {
                 .environmentObject(viewModel)
         }
         .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 900, height: 720) 
         
         // MARK: - About Window
         
@@ -36,6 +37,7 @@ struct Simple_RenamerApp: App {
         
         // MARK: - Menu Bar Commands
         .commands {
+            SidebarCommands() // Enables native show/hide keyboard shortcuts for the sidebar.
             // Remove the default New Item commands
             CommandGroup(replacing: .newItem) {}
 
@@ -49,23 +51,24 @@ struct Simple_RenamerApp: App {
                 }
                 .keyboardShortcut("o", modifiers: .command)
 
+                // Button to start the batch renaming process, shortcut Cmd+P
+                Button(action: {
+                    viewModel.safeBatchRename()
+                }) {
+                    Label("Process", systemImage: "arrow.right")
+                }
+                .keyboardShortcut("p", modifiers: .command)
+                
                 // Button to clear the current file list and reset state, shortcut Cmd+L
                 Button(action: {
                     viewModel.files.removeAll()
                     viewModel.parentFolder = nil
                     viewModel.itemType = .none
                 }) {
-                    Label("Clear List", systemImage: "eraser")
+                    Label("Clear List", systemImage: "arrow.uturn.left")
                 }
                 .keyboardShortcut("l", modifiers: .command)
                 
-                // Button to start the batch renaming process, shortcut Cmd+P
-                Button(action: {
-                    viewModel.safeBatchRename()
-                }) {
-                    Label("Process", systemImage: "play.circle")
-                }
-                .keyboardShortcut("p", modifiers: .command) // Choose your preferred shortcut
             }
 
             // Replace the default About menu item with a custom About window opener
@@ -76,6 +79,18 @@ struct Simple_RenamerApp: App {
                     Label("About Simple Renamer", systemImage: "info.circle")
                 }
             }
+            
+            CommandGroup(replacing: .help) {
+                Button {
+                    if let url = URL(string: "https://github.com/gbabichev/Simple-Renamer") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Label("Simple Renamer Help", systemImage: "questionmark.circle")
+                }
+                .keyboardShortcut("?", modifiers: [.command])
+            }
+            
         }
         
     }

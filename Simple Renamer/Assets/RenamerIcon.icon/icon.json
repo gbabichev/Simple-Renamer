@@ -9,14 +9,20 @@
       "hidden" : false,
       "layers" : [
         {
-          "image-name" : "ChatGPT Image Jul 21, 2025 at 08_40_57 AM.png",
-          "name" : "Pencil"
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : "none"
+            }
+          ],
+          "image-name" : "Renamer.png",
+          "name" : "Renamer"
         }
       ],
       "lighting" : "individual",
       "shadow" : {
         "kind" : "layer-color",
-        "opacity" : 0.8
+        "opacity" : 1
       },
       "specular" : true,
       "translucency" : {

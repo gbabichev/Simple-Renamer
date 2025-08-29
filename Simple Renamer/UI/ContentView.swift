@@ -17,24 +17,60 @@ struct ContentView: View {
     // Used to programmatically control focus on base name input
     @FocusState private var baseNameFieldFocused: Bool
 
-    // Settings popover control
-    @State private var showSettingsPopover = false
-
-    // Controls NavigationSplitView sidebar behavior (hidden, visible, etc.)
-    @State private var splitVisibility: NavigationSplitViewVisibility = .automatic
-
     // Main ViewModel (must be injected in .environmentObject())
     @EnvironmentObject private var viewModel: BatchRenamerViewModel
 
     // Persist template list in user defaults (JSON-encoded)
+    private static let defaultTemplates: [String] = ["Template", "Another Template"]
+    @State private var templatesState: [String] = ContentView.defaultTemplates
     @AppStorage("templates") private var templatesData: Data = Data()
-
-    // List of templates shown in sidebar and popover
-    @State private var templatesState: [String] = ["cars", "flowers", "office"]
 
     // Which template is currently selected in the sidebar
     @State private var selectedTemplate: String?
 
+    // Inline template editor state
+    @State private var newTemplate: String = ""
+    @FocusState private var addFieldFocused: Bool
+    @State private var addError: String?
+
+    // User-visible error messages
+    @State private var importError: String?
+    @State private var exportError: String?
+
+    // Reset confirmation
+    @State private var showResetConfirm = false
+    
+
+    // MARK: - Templates FileDocument (JSON) + Import/Export state
+    struct TemplatesDocument: FileDocument {
+        static var readableContentTypes: [UTType] { [.json] }
+        static var writableContentTypes: [UTType] { [.json] }
+
+        var templates: [String]
+
+        init(templates: [String]) {
+            self.templates = templates
+        }
+
+        init(configuration: ReadConfiguration) throws {
+            guard let data = configuration.file.regularFileContents else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            self.templates = try JSONDecoder().decode([String].self, from: data)
+        }
+
+        func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+            let data = try JSONEncoder().encode(templates)
+            return .init(regularFileWithContents: data)
+        }
+    }
+
+    @State private var isImportingTemplates = false
+    @State private var isExportingTemplates = false
+    @State private var templatesDoc = TemplatesDocument(templates: [])
+
+    
+    
     // Loads template list from user defaults at launch
     private func loadTemplates() {
         if let loaded = try? JSONDecoder().decode([String].self, from: templatesData), !loaded.isEmpty {
@@ -46,16 +82,65 @@ struct ContentView: View {
         templatesData = (try? JSONEncoder().encode(templatesState)) ?? Data()
     }
 
+    // MARK: - Reset templates helper
+    private func resetTemplatesToDefault() {
+        withAnimation {
+            templatesState = Self.defaultTemplates
+            saveTemplates()
+            // Clear selection and base name if they no longer exist
+            if let sel = selectedTemplate, !Self.defaultTemplates.contains(sel) {
+                selectedTemplate = nil
+            }
+            if !Self.defaultTemplates.contains(viewModel.inputField) {
+                viewModel.inputField = ""
+                viewModel.updateProposedNames()
+            }
+        }
+    }
+
     var body: some View {
         NavigationSplitView {
-            // MARK: - Sidebar (Templates + Settings Popover)
+            // MARK: - Sidebar
             VStack(spacing: 0) {
+                Text ("Templates")
+                    .font(.title3)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider()
                 // List of templates
                 List(selection: $selectedTemplate) {
-                    ForEach(templatesState, id: \.self) { template in
+                    ForEach(templatesState.indices, id: \.self) { idx in
                         HStack {
                             Image(systemName: "list.bullet")
-                            Text(template)
+                            TextField("Template", text: $templatesState[idx])
+                                .textFieldStyle(.plain)
+                                .onSubmit {
+                                    // Trim whitespace on submit
+                                    templatesState[idx] = templatesState[idx].trimmingCharacters(in: .whitespacesAndNewlines)
+                                }
+                            Spacer(minLength: 8)
+                            Button {
+                                withAnimation {
+                                    let removedValue = templatesState[idx]
+                                    templatesState.remove(at: idx)
+                                    if selectedTemplate == removedValue {
+                                        selectedTemplate = nil
+                                    }
+                                    if viewModel.inputField == removedValue {
+                                        viewModel.inputField = ""
+                                        viewModel.updateProposedNames()
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .imageScale(.medium)
+                                    .foregroundStyle(.red)
+                                    .accessibilityLabel("Delete template")
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -69,23 +154,36 @@ struct ContentView: View {
                 }
                 // Divider between template list and settings button
                 Divider()
-                Button {
-                    showSettingsPopover = true
-                } label: {
-                    Label("Settings", systemImage: "gearshape")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                }
-                .buttonStyle(.plain)
-                // Settings popover for managing templates
-                .popover(isPresented: $showSettingsPopover, arrowEdge: .top) {
-                    SettingsPopoverView(templates: $templatesState)
-                        .frame(width: 250, height: 320)
-                }
-                .padding(.bottom, 8)
-                .padding(.horizontal, 8)
+                
+                TextField("Add New Template", text: $newTemplate)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($addFieldFocused)
+                    // Red border for error state
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(addError != nil ? Color.red : Color.clear, lineWidth: 2)
+                    )
+                    // On enter, add if not duplicate or empty
+                    .onSubmit {
+                        let trimmed = newTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        if templatesState.contains(trimmed) {
+                            addError = "Duplicate Entry"
+                        } else {
+                            withAnimation {
+                                templatesState.append(trimmed)
+                            }
+                            newTemplate = ""
+                            addError = nil
+                            addFieldFocused = false
+                        }
+                    }
+                    // Clear error as user types
+                    .onChange(of: newTemplate) { _, _ in
+                        addError = nil
+                    }
+                    .padding(10)
+
             }
             .frame(minWidth: 200)
         } detail: {
@@ -171,11 +269,6 @@ struct ContentView: View {
                         }
                     }
                     // Stylized background and border for file list area
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color(.windowBackgroundColor))
-                            .shadow(color: Color.black.opacity(0.07), radius: 8, y: 2)
-                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .stroke(Color.gray.opacity(0.15), lineWidth: 1)
@@ -184,7 +277,9 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .padding(15)
-                .frame(minWidth: 400, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 500, minHeight: 400)
+
+                
                 // MARK: - Renaming Progress Overlay
                 if viewModel.renaming {
                     Color.black.opacity(0.15).ignoresSafeArea()
@@ -204,9 +299,10 @@ struct ContentView: View {
         }
         // MARK: - Toolbar
         .toolbar {
+            // Left side - Open and Clear with labels
             ToolbarItem(placement: .navigation) {
                 Button(action: viewModel.selectFolder) {
-                    Image(systemName: "folder")
+                    Label("Open", systemImage: "folder")
                 }
                 .help("Open Folder")
             }
@@ -216,30 +312,57 @@ struct ContentView: View {
                     viewModel.parentFolder = nil
                     viewModel.itemType = .none
                 }) {
-                    Image(systemName: "arrow.clockwise")
+                    Label("Clear", systemImage: "arrow.clockwise")
                 }
                 .help("Clear List")
             }
-            ToolbarItem(placement: .navigation) {
-                Button(action: viewModel.safeBatchRename) {
-                    Image(systemName: "arrow.right")
-                }
+            
+            // Center - Just a spacer
+            ToolbarItem(placement: .principal) {
+                Spacer()
             }
-            ToolbarItem(placement: .navigation) {
+            
+            // Templates Import/Export
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        isImportingTemplates = true
+                    } label: {
+                        Label("Import Templates", systemImage: "square.and.arrow.down")
+                    }
+                    Button {
+                        templatesDoc = TemplatesDocument(templates: viewModel.normalizeTemplates(templatesState))
+                        isExportingTemplates = true
+                    } label: {
+                        Label("Export Templates", systemImage: "square.and.arrow.up")
+                    }
+                    Divider()
+                    Button {
+                        showResetConfirm = true
+                    } label: {
+                        Label("Reset Templates", systemImage: "arrow.counterclockwise")
+                    }
+                } label: {
+                    Label("Templates", systemImage: "tray.full")
+                }
+                .help("Import/Export Templates JSON")
+            }
+            
+            // Right side - Process and Undo
+            ToolbarItem(placement: .primaryAction) {
                 Button(action: { viewModel.undoLastRename() }) {
-                    Image(systemName: "arrow.uturn.left")
+                    Label("Undo", systemImage: "arrow.uturn.left")
                 }
                 .help("Undo Last Rename")
                 .disabled(!viewModel.canUndo)
             }
-            ToolbarItem(placement: .principal) {
-                Text("Renamer")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .padding(.horizontal, 16)
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: viewModel.safeBatchRename) {
+                    Label("Process", systemImage: "arrow.right")
+                }
+                .help("Process Rename")
             }
         }
-        // MARK: - Template Persistence
         .onAppear(perform: loadTemplates)
         .onChange(of: templatesState) {
             saveTemplates()
@@ -248,8 +371,105 @@ struct ContentView: View {
         .onChange(of: viewModel.processContents) { _, newValue in
             viewModel.selectFolderContentsBasedOnToggle(processContents: newValue)
         }
+        // Templates: Import via SwiftUI fileImporter
+        .fileImporter(
+            isPresented: $isImportingTemplates,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                do {
+                    let data = try Data(contentsOf: url)
+                    let cleaned = try viewModel.decodeTemplatesJSON(data)
+                    withAnimation {
+                        templatesState = cleaned
+                    }
+                    saveTemplates()
+                    if let sel = selectedTemplate, !cleaned.contains(sel) {
+                        selectedTemplate = nil
+                    }
+                    if !cleaned.contains(viewModel.inputField) {
+                        viewModel.inputField = ""
+                        viewModel.updateProposedNames()
+                    }
+                } catch {
+                    let friendly: String
+                    if let decodeErr = error as? DecodingError {
+                        friendly = "Invalid JSON. Expected a JSON array of strings. (\(decodeErr))"
+                    } else {
+                        friendly = error.localizedDescription
+                    }
+                    importError = friendly
+                    print("Import failed: \(friendly)")
+                }
+            case .failure(let error):
+                print("Import canceled/failed: \(error)")
+            }
+        }
+        // Templates: Export via SwiftUI fileExporter
+        .fileExporter(
+            isPresented: $isExportingTemplates,
+            document: templatesDoc,
+            contentType: .json,
+            defaultFilename: "Templates"
+        ) { result in
+            switch result {
+            case .success:
+                break
+            case .failure(let error):
+                print("Export failed: \(error)")
+                exportError = error.localizedDescription
+            }
+        }
+        // Alert for import errors
+        .alert("Import Failed", isPresented: Binding(
+            get: { importError != nil },
+            set: { if !$0 { importError = nil } }
+        )) {
+            Button("OK", role: .cancel) { importError = nil }
+        } message: {
+            Text(importError ?? "Unknown error")
+        }
+        // Alert for export errors
+        .alert("Export Failed", isPresented: Binding(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("OK", role: .cancel) { exportError = nil }
+        } message: {
+            Text(exportError ?? "Unknown error")
+        }
+        // Confirm reset templates
+        .modifier(ResetConfirmationModifier(showResetConfirm: $showResetConfirm, resetAction: resetTemplatesToDefault))
+
     }
 
+    
+    struct ResetConfirmationModifier: ViewModifier {
+        @Binding var showResetConfirm: Bool
+        let resetAction: () -> Void
+        
+        func body(content: Content) -> some View {
+            content
+                .confirmationDialog("Reset Templates?", isPresented: $showResetConfirm, titleVisibility: .visible) {
+                    Button("Reset", role: .destructive, action: resetAction)
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("This will remove all current templates and restore the default set.")
+                }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     // MARK: - Drag-and-Drop Logic (Helper)
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
@@ -270,11 +490,16 @@ struct ContentView: View {
 
                     guard let realURL = url else { return }
                     DispatchQueue.main.async {
-                        // Folder drop: replace contents and parse
+                        // Folder drop: use the exact same logic as the toolbar button
                         if realURL.hasDirectoryPath {
-                            viewModel.parentFolder = realURL
-                            viewModel.files.removeAll()
-                            viewModel.selectFolderContentsBasedOnToggle(processContents: viewModel.processContents)
+                            // Clear any selected template first
+                            selectedTemplate = nil
+                            
+                            // Use the same logic as the toolbar button
+                            viewModel.setFolderFromDrop(url: realURL)
+                            
+                            // Focus the input field (same as clicking Open Folder)
+                            baseNameFieldFocused = true
                         } else {
                             // File drop: add individual file to batch
                             if viewModel.parentFolder == nil {

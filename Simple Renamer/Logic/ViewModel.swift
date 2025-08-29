@@ -118,6 +118,10 @@ class BatchRenamerViewModel: ObservableObject {
         }
     }
 
+    func setFolderFromDrop(url: URL) {
+        setCurrentFolder(url: url)
+    }
+    
     /// Sets the current folder and populates its contents.
     /// - Parameter url: The URL of the selected folder.
     private func setCurrentFolder(url: URL) {
@@ -130,81 +134,90 @@ class BatchRenamerViewModel: ObservableObject {
 
     /// Populates the files/folders list based on the current folder and settings.
     /// - Parameter processContents: Whether to process files inside subfolders.
+    /// Populates the files/folders list based on the current folder and settings.
+    /// - Parameter processContents: Whether to process files inside subfolders.
     func selectFolderContentsBasedOnToggle(processContents: Bool) {
-        guard let url = parentFolder else { return }
+        guard let url = parentFolder else {
+            return
+        }
 
-        // Request access to the folder if sandboxed
-        if url.startAccessingSecurityScopedResource() {
-            defer { url.stopAccessingSecurityScopedResource() }
-            do {
-                // List all visible files and folders in the selected directory
-                let contents = try FileManager.default.contentsOfDirectory(
-                    at: url,
-                    includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey],
-                    options: [.skipsHiddenFiles]
-                )
-                // Sort and filter files and folders separately
-                let fileURLs = contents
-                    .filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false }
-                    .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-
-                let folderURLs = contents
-                    .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false }
-                    .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-
-                if !fileURLs.isEmpty && folderURLs.isEmpty {
-                    // Only files in the base folder
-                    files = fileURLs.map { fileURL in
-                        FileItem(url: fileURL, newName: "", parentFolder: url)
-                    }
-                    itemType = .files
-                } else if fileURLs.isEmpty && !folderURLs.isEmpty {
-                    // Only folders in the base folder
-                    if processContents {
-                        // Flatten all files inside subfolders (with parentFolder marked)
-                        var batchItems: [FileItem] = []
-                        for folder in folderURLs {
-                            let innerFiles = try FileManager.default.contentsOfDirectory(
-                                at: folder,
-                                includingPropertiesForKeys: [.isRegularFileKey],
-                                options: [.skipsHiddenFiles]
-                            ).filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false }
-                            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-
-                            for fileURL in innerFiles {
-                                batchItems.append(FileItem(url: fileURL, newName: "", parentFolder: folder))
-                            }
-                        }
-                        files = batchItems
-                        itemType = .files // treat as files for renaming purposes
-                    } else {
-                        // Standard: rename the folders themselves
-                        files = folderURLs.map { folderURL in
-                            FileItem(url: folderURL, newName: "", parentFolder: nil)
-                        }
-                        itemType = .folders
-                    }
-                } else if fileURLs.isEmpty && folderURLs.isEmpty {
-                    // The folder is empty
-                    files = []
-                    itemType = .none
-                } else {
-                    // Mixed content: both files and folders present (unsupported)
-                    files = []
-                    itemType = .none
-                    self.error = "Cannot batch rename: folder contains both files and folders."
-                    return
-                }
-                error = nil
-                updateProposedNames()
-            } catch {
-                // Handle file system errors
-                self.error = "Failed to list folder: \(error.localizedDescription)"
-                itemType = .none
+        // Try to access the folder - for drag-and-drop, this might not be needed
+        let needsSecurityAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if needsSecurityAccess {
+                url.stopAccessingSecurityScopedResource()
             }
         }
-    }
+        
+        do {
+            // List all visible files and folders in the selected directory
+            let contents = try FileManager.default.contentsOfDirectory(
+                at: url,
+                includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )
+            
+            // Sort and filter files and folders separately
+            let fileURLs = contents
+                .filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false }
+                .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
 
+            let folderURLs = contents
+                .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false }
+                .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+
+
+            if !fileURLs.isEmpty && folderURLs.isEmpty {
+                // Only files in the base folder
+                files = fileURLs.map { fileURL in
+                    FileItem(url: fileURL, newName: "", parentFolder: url)
+                }
+                itemType = .files
+            } else if fileURLs.isEmpty && !folderURLs.isEmpty {
+                // Only folders in the base folder
+                if processContents {
+                    // Flatten all files inside subfolders (with parentFolder marked)
+                    var batchItems: [FileItem] = []
+                    for folder in folderURLs {
+                        let innerFiles = try FileManager.default.contentsOfDirectory(
+                            at: folder,
+                            includingPropertiesForKeys: [.isRegularFileKey],
+                            options: [.skipsHiddenFiles]
+                        ).filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false }
+                        .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+
+                        for fileURL in innerFiles {
+                            batchItems.append(FileItem(url: fileURL, newName: "", parentFolder: folder))
+                        }
+                    }
+                    files = batchItems
+                    itemType = .files // treat as files for renaming purposes
+                } else {
+                    // Standard: rename the folders themselves
+                    files = folderURLs.map { folderURL in
+                        FileItem(url: folderURL, newName: "", parentFolder: nil)
+                    }
+                    itemType = .folders
+                }
+            } else if fileURLs.isEmpty && folderURLs.isEmpty {
+                // The folder is empty
+                files = []
+                itemType = .none
+            } else {
+                // Mixed content: both files and folders present (unsupported)
+                files = []
+                itemType = .none
+                self.error = "Cannot batch rename: folder contains both files and folders."
+                return
+            }
+            error = nil
+            updateProposedNames()
+        } catch {
+            // Handle file system errors
+            self.error = "Failed to list folder: \(error.localizedDescription)"
+            itemType = .none
+        }
+    }
     // MARK: - Name Parsing
 
     /// Parses the input field for a base name and trailing number.
@@ -230,19 +243,26 @@ class BatchRenamerViewModel: ObservableObject {
         if processContents && isFile {
             // Renaming files inside subfolders: reset numbering per folder
             let grouped = Dictionary(grouping: files) { $0.parentFolder ?? URL(fileURLWithPath: "") }
+            // Iterate folders in a stable, Finder-like order
+            let foldersInOrder = grouped.keys.sorted {
+                $0.path.localizedStandardCompare($1.path) == .orderedAscending
+            }
             var newFileList: [FileItem] = []
-            for (folder, items) in grouped {
-                // Sort files within each folder for deterministic ordering
-                let sorted = items.sorted { $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending }
-                for (idx, old) in sorted.enumerated() {
+
+            for folder in foldersInOrder {
+                // Sort files within each folder in Finder-like order
+                let items = (grouped[folder] ?? []).sorted {
+                    $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending
+                }
+                for (idx, old) in items.enumerated() {
                     let n = start + idx
                     let ext = old.url.pathExtension
                     let newName = makeNewName(base: base, number: n, pad: pad, ext: ext, isFile: true)
                     newFileList.append(FileItem(url: old.url, newName: newName, parentFolder: folder))
                 }
             }
-            // Sort by path for stable UI order
-            files = newFileList.sorted { $0.url.path < $1.url.path }
+            // Stable display order: parent folder (natural), then name (natural)
+            files = newFileList.sorted(by: displayAscending)
         } else {
             // Regular batch renaming (files or folders)
             files = files.enumerated().map { idx, old in
@@ -264,7 +284,7 @@ class BatchRenamerViewModel: ObservableObject {
     ///   - ext: The file extension, if any.
     ///   - isFile: Whether the item is a file.
     /// - Returns: The constructed name.
-    private func makeNewName(base: String, number: Int, pad: Int, ext: String?, isFile: Bool) -> String {
+    nonisolated private func makeNewName(base: String, number: Int, pad: Int, ext: String?, isFile: Bool) -> String {
         let numString = pad > 0 ? String(format: "%0\(pad)d", number) : "\(number)"
         let name = "\(base)\(numString)"
         if isFile, let ext = ext, !ext.isEmpty {
@@ -306,6 +326,7 @@ class BatchRenamerViewModel: ObservableObject {
             let fm = FileManager.default
 
             var localFiles = filesToRename
+            localFiles.sort(by: self.naturalAscending) // ensure numbering matches Finder-like display order
             var localError: String?
             // For undo: collect rename records.
             var renameRecords: [RenameRecord] = []
@@ -320,7 +341,11 @@ class BatchRenamerViewModel: ObservableObject {
                     var allTempURLs: [URL] = []
                     var allFinals: [FileItem] = []
 
-                    for (folder, items) in grouped {
+                    for (folder, unsortedItems) in grouped {
+                        // Use the same per-folder natural order as the preview
+                        let items = unsortedItems.sorted {
+                            $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending
+                        }
                         var folderTempURLs: [URL] = []
                         // First: move all to temp names
                         for item in items {
@@ -366,7 +391,7 @@ class BatchRenamerViewModel: ObservableObject {
                         if localError != nil { break }
                     }
                     // Update the file list with the new URLs and names
-                    localFiles = allFinals.sorted { $0.url.path < $1.url.path }
+                    localFiles = allFinals.sorted(by: self.displayAscending)
                 } else {
                     // Standard batch renaming (files or folders)
                     for item in localFiles {
@@ -417,7 +442,7 @@ class BatchRenamerViewModel: ObservableObject {
             }
 
             DispatchQueue.main.async {
-                self.files = localFiles
+                self.files = localFiles.sorted(by: self.displayAscending)
                 self.renaming = false
                 self.error = localError
                 // Set up undo batch if successful and no error
@@ -427,5 +452,43 @@ class BatchRenamerViewModel: ObservableObject {
             }
         }
     }
-}
+    
+    // MARK: - Natural (Finder-like) sorting
 
+    /// Compare two file items using Finder-like natural ordering on their names.
+    nonisolated private func naturalAscending(_ lhs: FileItem, _ rhs: FileItem) -> Bool {
+        lhs.url.lastPathComponent.localizedStandardCompare(
+            rhs.url.lastPathComponent
+        ) == .orderedAscending
+    }
+
+    /// Compare first by parent folder path (natural), then by file name (natural).
+    nonisolated private func displayAscending(_ lhs: FileItem, _ rhs: FileItem) -> Bool {
+        let lp = lhs.parentFolder?.path ?? ""
+        let rp = rhs.parentFolder?.path ?? ""
+        if lp != rp {
+            return lp.localizedStandardCompare(rp) == .orderedAscending
+        }
+        return lhs.url.lastPathComponent.localizedStandardCompare(
+            rhs.url.lastPathComponent
+        ) == .orderedAscending
+    }
+
+    // MARK: - Templates JSON Utilities (UI-independent)
+    /// Normalize a list of template strings: trim whitespace/newlines, drop empties, and de‑duplicate while preserving first-seen order.
+    /// These are pure helpers so ContentView can keep SwiftUI's fileImporter/fileExporter
+    /// but still reuse a single source of truth for how templates are serialized/validated.
+    func normalizeTemplates(_ list: [String]) -> [String] {
+        var seen = Set<String>()
+        return list
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { seen.insert($0).inserted }
+    }
+
+    /// Decode templates from JSON data. Expects a top-level JSON array of strings.
+    func decodeTemplatesJSON(_ data: Data) throws -> [String] {
+        let decoded = try JSONDecoder().decode([String].self, from: data)
+        return normalizeTemplates(decoded)
+    }
+}
