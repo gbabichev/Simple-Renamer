@@ -41,7 +41,7 @@ class BatchRenamerViewModel: ObservableObject {
     /// The list of file or folder items to be renamed.
     @Published var files: [FileItem] = []
     /// The user input for the base name and starting number.
-    @Published var inputField: String = "Random01"
+    @Published var inputField: String = ""
     /// The currently selected parent folder.
     @Published var parentFolder: URL?
     /// The error message to display, if any.

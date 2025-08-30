@@ -14,6 +14,11 @@ import UniformTypeIdentifiers
 // Main UI for batch file renaming app with sidebar for templates and detail pane for file previews
 
 struct ContentView: View {
+    
+    // Track which template row is hovered for revealing row actions
+    @State private var hoveredIdx: Int? = nil
+
+    
     // Used to programmatically control focus on base name input
     @FocusState private var baseNameFieldFocused: Bool
 
@@ -97,108 +102,190 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func nextAvailableTemplateName(base: String = "New Template") -> String {
+        // Case-insensitive uniqueness
+        let existing = Set(templatesState.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+
+        // If "New Template" is free, use it
+        if !existing.contains(base.lowercased()) { return base }
+
+        // Otherwise find "New Template 2", "New Template 3", ...
+        var i = 2
+        while true {
+            let candidate = "\(base) \(i)"
+            if !existing.contains(candidate.lowercased()) {
+                return candidate
+            }
+            i += 1
+        }
+    }
+
 
     var body: some View {
-        NavigationSplitView {
-            // MARK: - Sidebar
-            VStack(spacing: 0) {
-                Text ("Templates")
-                    .font(.title3)
-                    .padding(.horizontal, 10)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Divider()
-                // List of templates
-                List(selection: $selectedTemplate) {
-                    ForEach(templatesState.indices, id: \.self) { idx in
-                        HStack {
-                            Image(systemName: "list.bullet")
-                            TextField("Template", text: $templatesState[idx])
-                                .textFieldStyle(.plain)
-                                .onSubmit {
-                                    // Trim whitespace on submit
-                                    templatesState[idx] = templatesState[idx].trimmingCharacters(in: .whitespacesAndNewlines)
+            NavigationSplitView {
+                // MARK: - Sidebar
+                VStack(spacing: 0) {
+                    // List of templates
+                    List(selection: $selectedTemplate) {
+                        Section(
+                            header:
+                                HStack {
+                                    Text("Templates")
+                                        .font(.headline)
+                                        .foregroundStyle(.secondary)
+                                        .textCase(.uppercase)
+                                    Spacer()
+                                    Button {
+                                        withAnimation {
+                                            let new = nextAvailableTemplateName()
+                                            templatesState.append(new)
+                                            selectedTemplate = new
+                                            viewModel.inputField = new
+                                            viewModel.updateProposedNames()
+                                        }
+                                    } label: {
+                                        Image(systemName: "plus")
+                                            .imageScale(.medium)
+                                            .padding(.trailing, 6)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .help("Add template")
                                 }
-                            Spacer(minLength: 8)
-                            Button {
+                                .padding(.bottom, 10)
+                                .font(.headline)
+                                .textCase(nil)
+                        ) {
+                            ForEach(templatesState.indices, id: \.self) { idx in
+                                HStack {
+                                    Image(systemName: "doc.text")
+                                        .imageScale(.medium)
+                                        .foregroundStyle(.secondary)
+                                    TextField("Template", text: $templatesState[idx])
+                                        .textFieldStyle(.plain)
+                                        .onSubmit {
+                                            // Trim whitespace on submit
+                                            templatesState[idx] = templatesState[idx]
+                                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                                        }
+                                    if hoveredIdx == idx {
+                                                Button {
+                                                    withAnimation {
+                                                        let removedValue = templatesState[idx]
+                                                        templatesState.remove(at: idx)
+                                                        if selectedTemplate == removedValue { selectedTemplate = nil }
+                                                        if viewModel.inputField == removedValue {
+                                                            viewModel.inputField = ""
+                                                            viewModel.updateProposedNames()
+                                                        }
+                                                    }
+                                                } label: {
+                                                    Image(systemName: "xmark.circle.fill")
+                                                        .imageScale(.small)
+                                                        .foregroundStyle(.tertiary)
+                                                        .accessibilityLabel("Delete template")
+                                                }
+                                                .buttonStyle(.borderless)
+                                            }
+                                }
+                                .padding(.vertical, 1)
+                                .onHover { inside in
+                                    hoveredIdx = inside ? idx : (hoveredIdx == idx ? nil : hoveredIdx)
+                                }
+                                .tag(templatesState[idx])
+                                
+                            }
+                        }
+                    }
+                    .listStyle(.sidebar)
+                    .onChange(of: selectedTemplate) { _, newValue in
+                        if let newValue {
+                            // Selecting a template pre-fills the input and recalculates
+                            viewModel.inputField = newValue
+                            viewModel.updateProposedNames()
+                        }
+                    }
+                    
+                    TextField("Add New Template", text: $newTemplate)
+                        .focused($addFieldFocused)
+                        // internal padding
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .textFieldStyle(.plain)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // draw the pill background first, so strokes sit outside
+                        .background(.regularMaterial, in: Capsule())
+                        // focus ring (suppressed if there's an error)
+                        .overlay(
+                            Capsule()
+                                .stroke((addError == nil && addFieldFocused) ? Color.accentColor.opacity(0.9) : .clear,
+                                        lineWidth: (addError == nil && addFieldFocused) ? 3 : 0)
+                        )
+                        // error ring on top so it is visible immediately
+                        .overlay(
+                            Capsule()
+                                .stroke(addError != nil ? Color.red : .clear,
+                                        lineWidth: addError != nil ? 2 : 0)
+                        )
+                        .animation(.snappy(duration: 0.18), value: addFieldFocused)
+                        // outer spacing relative to neighbors
+                        .padding(20)
+                        // On enter, add if not duplicate or empty
+                        .onSubmit {
+                            let trimmed = newTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            if templatesState.contains(trimmed) {
+                                addError = "Duplicate Entry"
+                            } else {
                                 withAnimation {
-                                    let removedValue = templatesState[idx]
-                                    templatesState.remove(at: idx)
-                                    if selectedTemplate == removedValue {
-                                        selectedTemplate = nil
-                                    }
-                                    if viewModel.inputField == removedValue {
-                                        viewModel.inputField = ""
-                                        viewModel.updateProposedNames()
-                                    }
+                                    templatesState.append(trimmed)
                                 }
-                            } label: {
-                                Image(systemName: "minus.circle.fill")
-                                    .imageScale(.medium)
-                                    .foregroundStyle(.red)
-                                    .accessibilityLabel("Delete template")
+                                newTemplate = ""
+                                addError = nil
+                                addFieldFocused = false
                             }
-                            .buttonStyle(.plain)
                         }
-                    }
-                }
-                .listStyle(.sidebar)
-                .onChange(of: selectedTemplate) { _, newValue in
-                    if let newValue {
-                        // Selecting a template pre-fills the input and recalculates
-                        viewModel.inputField = newValue
-                        viewModel.updateProposedNames()
-                    }
-                }
-                // Divider between template list and settings button
-                Divider()
-                
-                TextField("Add New Template", text: $newTemplate)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($addFieldFocused)
-                    // Red border for error state
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(addError != nil ? Color.red : Color.clear, lineWidth: 2)
-                    )
-                    // On enter, add if not duplicate or empty
-                    .onSubmit {
-                        let trimmed = newTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmed.isEmpty else { return }
-                        if templatesState.contains(trimmed) {
-                            addError = "Duplicate Entry"
-                        } else {
-                            withAnimation {
-                                templatesState.append(trimmed)
-                            }
-                            newTemplate = ""
-                            addError = nil
-                            addFieldFocused = false
+                        // Validate duplicates live while typing
+                        .onChange(of: newTemplate) { _, value in
+                            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { addError = nil; return }
+                            let exists = templatesState.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == trimmed.lowercased() }
+                            addError = exists ? "Duplicate Entry" : nil
                         }
-                    }
-                    // Clear error as user types
-                    .onChange(of: newTemplate) { _, _ in
-                        addError = nil
-                    }
-                    .padding(10)
 
-            }
-            .frame(minWidth: 200)
-        } detail: {
+                }
+                .frame(minWidth: 200)
+                
+            } detail: {
             // MARK: - Detail View (Main Rename Interface)
             ZStack {
                 VStack(alignment: .leading, spacing: 15) {
                     // Main text field for inputting base name for renaming
-                    TextField("Base Name", text: $viewModel.inputField)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .controlSize(.large)
-                        .focused($baseNameFieldFocused)
-                        .onChange(of: viewModel.inputField) {
-                            viewModel.updateProposedNames()
-                        }
+                    HStack {
+                        Image(systemName: "square.and.pencil")   // pick your SF Symbol
+                            .foregroundStyle(.secondary)
+
+                        TextField("Base Name", text: $viewModel.inputField)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .controlSize(.large)
+                            .focused($baseNameFieldFocused)
+                            .onChange(of: viewModel.inputField) {
+                                viewModel.updateProposedNames()
+                            }
+                    }
+                    .padding(.horizontal, 12)   // internal padding for text+icon
+                    .padding(.vertical, 6)
+                    .textFieldStyle(.plain)     // avoid the AppKit bezel
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.regularMaterial, in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(baseNameFieldFocused ? Color.accentColor.opacity(0.9) : .clear,
+                                    lineWidth: baseNameFieldFocused ? 3 : 0)
+                    )
+//                    .shadow(color: Color.accentColor.opacity(baseNameFieldFocused ? 0.35 : 0),
+//                            radius: baseNameFieldFocused ? 6 : 0)
+                    .animation(.snappy(duration: 0.18), value: baseNameFieldFocused)
                     // Show error message if validation fails
                     if let error = viewModel.error, !error.isEmpty {
                         Text(error)
@@ -219,6 +306,8 @@ struct ContentView: View {
                     }
                     // Toggle for processing files inside subfolders (controls viewModel.processContents)
                     Toggle("Process files inside subfolders", isOn: $viewModel.processContents)
+                        .toggleStyle(.switch)
+
                     // Table showing original and proposed file names
                     Table(viewModel.files) {
                         // Show icon based on file or folder type
@@ -275,6 +364,14 @@ struct ContentView: View {
                     )
                     // Clip file table to match rounded rectangle background
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay {
+                        if viewModel.files.isEmpty {
+                            ContentUnavailableView("No files",
+                                                   systemImage: "magnifyingglass",
+                                                   description: Text("Drop a folder or add files to begin."))
+                                .transition(.opacity)
+                        }
+                    }
                 }
                 .padding(15)
                 .frame(minWidth: 500, minHeight: 400)
@@ -363,7 +460,10 @@ struct ContentView: View {
                 .help("Process Rename")
             }
         }
-        .onAppear(perform: loadTemplates)
+        .onAppear {
+            loadTemplates()
+            baseNameFieldFocused = false
+        }
         .onChange(of: templatesState) {
             saveTemplates()
         }
