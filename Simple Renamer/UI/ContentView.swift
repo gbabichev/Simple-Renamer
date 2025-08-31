@@ -283,8 +283,6 @@ struct ContentView: View {
                             .stroke(baseNameFieldFocused ? Color.accentColor.opacity(0.9) : .clear,
                                     lineWidth: baseNameFieldFocused ? 3 : 0)
                     )
-//                    .shadow(color: Color.accentColor.opacity(baseNameFieldFocused ? 0.35 : 0),
-//                            radius: baseNameFieldFocused ? 6 : 0)
                     .animation(.snappy(duration: 0.18), value: baseNameFieldFocused)
                     // Show error message if validation fails
                     if let error = viewModel.error, !error.isEmpty {
@@ -305,8 +303,14 @@ struct ContentView: View {
                         }
                     }
                     // Toggle for processing files inside subfolders (controls viewModel.processContents)
-                    Toggle("Process files inside subfolders", isOn: $viewModel.processContents)
-                        .toggleStyle(.switch)
+                    HStack {
+                        
+                        Toggle("", isOn: $viewModel.processContents)
+                            .toggleStyle(.switch)
+                        
+                        Text("Process contents inside of subfolders. ")
+                    }
+
 
                     // Table showing original and proposed file names
                     Table(viewModel.files) {
