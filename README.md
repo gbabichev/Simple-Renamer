@@ -51,10 +51,17 @@ It will **not** accept folders that contain files & folders.
 
 ---
 
+## 🖥️ Minimum Requirements
+
+- macOS 15.0 or later  
+- Apple Silicon or Intel Mac (not tested on Intel)
+- ~20 MB free disk space  
+
+---
+
 ## ⚙️ Installation
 
 Download from Releases. It's signed & notarized!
-
 
 ---
 
