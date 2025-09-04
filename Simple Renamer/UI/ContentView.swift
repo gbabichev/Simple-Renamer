@@ -437,6 +437,20 @@ struct ContentView: View {
                     } label: {
                         Label("Export Templates", systemImage: "square.and.arrow.up")
                     }
+                    Button {
+                        do {
+                            let leafTemplates = try viewModel.templatesFromSubfolders()
+                            // Merge, normalize, then sort Finder-style (human alphabetical)
+                            let merged = viewModel.normalizeTemplates(templatesState + leafTemplates)
+                                .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+                            templatesState = merged
+                        } catch {
+                            exportError = error.localizedDescription
+                        }
+                    } label: {
+                        Label("Append Templates from Subfolders", systemImage: "list.bullet")
+                    }
+                    .disabled(viewModel.parentFolder == nil)
                     Divider()
                     Button {
                         showResetConfirm = true

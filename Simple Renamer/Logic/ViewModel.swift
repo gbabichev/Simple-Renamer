@@ -491,4 +491,57 @@ class BatchRenamerViewModel: ObservableObject {
         let decoded = try JSONDecoder().decode([String].self, from: data)
         return normalizeTemplates(decoded)
     }
+
+    // MARK: - Templates From Subfolders
+
+    /// Returns template strings built from *leaf* subfolders under the selected base folder.
+    /// A leaf folder is a directory that contains no subdirectories (it may contain files or be empty).
+    /// Each template is the relative path from the selected base folder to the leaf folder, using `/` separators.
+    /// - Throws: An error if no base folder is selected or directory listing fails.
+    func templatesFromSubfolders() throws -> [String] {
+        guard let base = parentFolder else {
+            throw NSError(domain: "BatchRenamerViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "No base folder selected."])
+        }
+
+        let fm = FileManager.default
+        var leafs: [URL] = []
+
+        // Enumerate immediate and nested directories under base (skip hidden)
+        let enumerator = fm.enumerator(at: base, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
+
+        // Collect all directories
+        var dirs: [URL] = []
+        while let next = enumerator?.nextObject() as? URL {
+            if (try? next.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                dirs.append(next)
+            }
+        }
+
+        // Determine which directories are leafs: those that have no subdirectories
+        for dir in dirs {
+            let contents = try fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
+            let hasSubdir = contents.contains { url in
+                ((try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false)
+            }
+            if !hasSubdir { leafs.append(dir) }
+        }
+
+        // Build relative path strings (templates)
+        let basePath = base.path.hasSuffix("/") ? base.path : base.path + "/"
+        let rawTemplates: [String] = leafs.map { leaf in
+            var path = leaf.path
+            if path.hasPrefix(basePath) { path.removeFirst(basePath.count) }
+            return path
+        }
+
+        return normalizeTemplates(rawTemplates)
+    }
+
+    /// Convenience: JSON Data for templates discovered from subfolders (pretty-printed)
+    func encodeTemplatesFromSubfolders() throws -> Data {
+        let templates = try templatesFromSubfolders()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(templates)
+    }
 }

@@ -74,3 +74,14 @@ git clone https://github.com/gbabichev/simple-renamer.git
 cd simple-renamer
 open SimpleRenamer.xcodeproj
 ```
+
+## 📝 Changelog
+
+### 1.0.2
+- Added "Create templates from subfolders" option in the Import/Export menu. 
+
+### 1.0.1
+- UI Updates for Liquid Glass
+
+### 1.0
+- Initial release.
