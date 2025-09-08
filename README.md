@@ -1,9 +1,20 @@
-# ✨ Simple Renamer
+<div align="center">
+
+# Simple Renamer
+
+<picture>
+  <source srcset="Documentation/icon-dark.png" media="(prefers-color-scheme: dark)">
+  <source srcset="Documentation/icon-light.png" media="(prefers-color-scheme: light)">
+  <img src="Documentation/icon-light.png" alt="App Icon" width="100">
+</picture>
+<br/><br/>
 
 Tired of files called `IMG_1234.JPG`, `IMG_1235.JPG`, and `IMG_FINAL_FINAL2.JPG`?  
 Say hello to **Simple Renamer** – the friendly little macOS app that makes batch renaming painless, fast, and easy.
 
+</div>
 
+## 🖥️ Screenshots 
 
 <p align="center">
   <!-- Add screenshots later -->
