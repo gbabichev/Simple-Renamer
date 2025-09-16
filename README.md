@@ -88,6 +88,9 @@ open SimpleRenamer.xcodeproj
 
 ## 📝 Changelog
 
+### 1.0.3 
+- Adjusted logic in "Create templates from subfolders" to only look at what's in the table, and not walk the filesystem. 
+
 ### 1.0.2
 - Added "Create templates from subfolders" option in the Import/Export menu. 
 
