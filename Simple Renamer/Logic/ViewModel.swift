@@ -48,6 +48,10 @@ class BatchRenamerViewModel: ObservableObject {
     @Published var error: String?
     /// Indicates whether a renaming operation is in progress.
     @Published var renaming: Bool = false
+    /// Shows success notification after rename completes.
+    @Published var showSuccessNotification: Bool = false
+    /// Opacity for success notification fade animation.
+    @Published var successNotificationOpacity: Double = 0.0
     /// The current batch item type (files, folders, or none).
     @Published var itemType: BatchItemType = .none
     /// Whether to process the contents of subfolders.
@@ -448,6 +452,17 @@ class BatchRenamerViewModel: ObservableObject {
                 // Set up undo batch if successful and no error
                 if localError == nil {
                     self.lastRenameBatch = renameRecords
+                    // Show success notification with fade in
+                    self.showSuccessNotification = true
+                    self.successNotificationOpacity = 1.0
+                    // Fade out after 3 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        self.successNotificationOpacity = 0.0
+                    }
+                    // Remove from view after fade completes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                        self.showSuccessNotification = false
+                    }
                 }
             }
         }

@@ -396,6 +396,28 @@ struct ContentView: View {
                     .padding(40)
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.75)))
                 }
+
+                // MARK: - Success Notification
+                if viewModel.showSuccessNotification {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.green)
+                        Text("Rename Complete")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(.ultraThickMaterial)
+                            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                    )
+                    .opacity(viewModel.successNotificationOpacity)
+                    .scaleEffect(viewModel.successNotificationOpacity * 0.2 + 0.8)
+                    .animation(.easeInOut(duration: 0.5), value: viewModel.successNotificationOpacity)
+                }
             }
         }
         // MARK: - Toolbar
@@ -476,6 +498,7 @@ struct ContentView: View {
                     Label("Process", systemImage: "arrow.right")
                 }
                 .help("Process Rename")
+                .disabled(viewModel.files.isEmpty)
             }
         }
         .onAppear {

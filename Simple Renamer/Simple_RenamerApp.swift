@@ -58,7 +58,8 @@ struct Simple_RenamerApp: App {
                     Label("Process", systemImage: "arrow.right")
                 }
                 .keyboardShortcut("p", modifiers: .command)
-                
+                .disabled(viewModel.files.isEmpty)
+
                 // Button to clear the current file list and reset state, shortcut Cmd+L
                 Button(action: {
                     viewModel.files.removeAll()
@@ -68,6 +69,7 @@ struct Simple_RenamerApp: App {
                     Label("Clear List", systemImage: "arrow.uturn.left")
                 }
                 .keyboardShortcut("l", modifiers: .command)
+                .disabled(viewModel.files.isEmpty)
                 
             }
 
