@@ -85,3 +85,9 @@ open SimpleRenamer.xcodeproj
 
 ### 1.0
 - Initial release.
+
+## Privacy
+<a href="Documentation/PrivacyPolicy.html">Privacy Policy</a>
+
+## Support 
+<a href="Documentation/Support.html">Support</a>
