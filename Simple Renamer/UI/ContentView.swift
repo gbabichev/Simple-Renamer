@@ -356,9 +356,7 @@ struct ContentView: View {
                     // Right-click menu for clearing the file list
                     .contextMenu {
                         Button("Clear List") {
-                            viewModel.files.removeAll()
-                            viewModel.parentFolder = nil
-                            viewModel.itemType = .none
+                            viewModel.clearFolder()
                         }
                     }
                     // Stylized background and border for file list area
@@ -431,9 +429,7 @@ struct ContentView: View {
             }
             ToolbarItem(placement: .navigation) {
                 Button(action: {
-                    viewModel.files.removeAll()
-                    viewModel.parentFolder = nil
-                    viewModel.itemType = .none
+                    viewModel.clearFolder()
                 }) {
                     Label("Clear", systemImage: "arrow.clockwise")
                 }
@@ -630,14 +626,15 @@ struct ContentView: View {
                     }
 
                     guard let realURL = url else { return }
+
                     DispatchQueue.main.async {
                         // Folder drop: use the exact same logic as the toolbar button
                         if realURL.hasDirectoryPath {
                             // Clear any selected template first
                             selectedTemplate = nil
-                            
-                            // Use the same logic as the toolbar button
-                            viewModel.setFolderFromDrop(url: realURL)
+
+                            // Use the same logic as the toolbar button (with bookmark creation)
+                            viewModel.setFolderFromDrop(url: realURL, createBookmark: true)
                             
                             // Focus the input field (same as clicking Open Folder)
                             baseNameFieldFocused = true

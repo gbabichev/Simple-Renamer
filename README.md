@@ -1,7 +1,5 @@
 <div align="center">
 
-# Simple Renamer
-
 <picture>
   <source srcset="Documentation/icon-dark.png" media="(prefers-color-scheme: dark)">
   <source srcset="Documentation/icon-light.png" media="(prefers-color-scheme: light)">
@@ -9,41 +7,33 @@
 </picture>
 <br/><br/>
 
-Tired of files called `IMG_1234.JPG`, `IMG_1235.JPG`, and `IMG_FINAL_FINAL2.JPG`?  
-Say hello to **Simple Renamer** – the friendly little macOS app that makes batch renaming painless, fast, and easy.
+Say hello to <b>Simple Renamer</b> – the friendly Mac app that makes batch renaming painless, fast, and easy.
 
 </div>
 
 ## 🖥️ Screenshots 
 
 <p align="center">
-  <!-- Add screenshots later -->
-  <img src="Documentation/Renamer.png" width="400" alt="Drag & Drop"/>
+  <img src="Documentation/App1.png" width="400" alt="Drag & Drop"/>
 </p>
 
+## Features
 
----
-
-## 🚀 Features
-
-- 🖱️ **Drag & Drop** – Drop in a folder of files and watch them line up for renaming.  
+- 🖱️ **Drag & Drop** – Drop in a folder of files.
 - 🔍 **Live Preview** – See exactly how files will look before you commit.  
 - 📝 **Templates** – Build your own patterns (`Holiday-###`, `Project_[date]`, etc.).  
 - 📤 **JSON Support** - Export & Import templates with JSON.
 - 🔢 **Counters & Sequences** – Auto-number files like a pro. Automatic or manual padding & automatic / manual sequence starts. 
 - 🔄 **Find & Replace** – Fix typos or swap out words across a batch.  
-- 💻 **SwiftUI Native** – Lightweight, modern, and built for macOS.  
 
----
-
-## 🎮 How to Use
+## How to Use
 
 1. Launch **Simple Renamer**.  
 2. Open (or drag) your files (or folders) into the window.  
 3. Preview the new names instantly.  
 4. Process! ✅ 
 
----
+
 
 ## ⚠️ Usage Notes 
 
@@ -51,16 +41,7 @@ I designed this app to rename individual files inside of folders, or files that 
 
 It will **not** accept folders that contain files & folders. 
 
----
 
-## 🏗️ Tech Stack
-
-- Built in **Swift 6** + **SwiftUI**  
-- Clean **MVVM architecture** (`ViewModel.swift` in action)  
-- Uses **AppStorage** for your favorite templates  
-- macOS **Tahoe ready** 🍎  fancy icon! 
-
----
 
 ## 🖥️ Minimum Requirements
 
@@ -71,6 +52,8 @@ It will **not** accept folders that contain files & folders.
 ---
 
 ## ⚙️ Installation
+
+Mac App Store
 
 Download from Releases. It's signed & notarized!
 
@@ -87,6 +70,9 @@ open SimpleRenamer.xcodeproj
 ```
 
 ## 📝 Changelog
+
+### 1.0.4
+- Added small UI popup when a batch rename is done. 
 
 ### 1.0.3 
 - Adjusted logic in "Create templates from subfolders" to only look at what's in the table, and not walk the filesystem. 

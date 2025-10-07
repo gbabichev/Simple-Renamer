@@ -44,6 +44,10 @@ class BatchRenamerViewModel: ObservableObject {
     @Published var inputField: String = ""
     /// The currently selected parent folder.
     @Published var parentFolder: URL?
+    /// Security-scoped bookmark data for sandboxed access to parent folder.
+    private var parentFolderBookmark: Data?
+    /// Whether we're currently accessing a security-scoped resource.
+    private var isAccessingSecurityScopedResource = false
     /// The error message to display, if any.
     @Published var error: String?
     /// Indicates whether a renaming operation is in progress.
@@ -122,8 +126,60 @@ class BatchRenamerViewModel: ObservableObject {
         }
     }
 
-    func setFolderFromDrop(url: URL) {
+    func setFolderFromDrop(url: URL, createBookmark: Bool = true) {
+        // Stop accessing previous security-scoped resource if needed
+        if isAccessingSecurityScopedResource, let oldFolder = parentFolder {
+            oldFolder.stopAccessingSecurityScopedResource()
+            isAccessingSecurityScopedResource = false
+        }
+
+        #if APPSTORE
+        // For sandboxed App Store builds, drag-and-drop doesn't provide security-scoped access
+        // We need to prompt the user with NSOpenPanel to get proper access
+        if createBookmark {
+            // Open a panel to let the user grant access to the dropped folder
+            let panel = NSOpenPanel()
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.allowsMultipleSelection = false
+            panel.message = "Grant access to this folder for renaming"
+            panel.prompt = "Grant Access"
+            panel.directoryURL = url
+
+            if panel.runModal() == .OK, let grantedURL = panel.url {
+                // Now we have a proper security-scoped URL
+                let didStart = grantedURL.startAccessingSecurityScopedResource()
+                isAccessingSecurityScopedResource = didStart
+
+                // Create a bookmark for future access
+                do {
+                    let bookmarkData = try grantedURL.bookmarkData(
+                        options: .withSecurityScope,
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil
+                    )
+                    parentFolderBookmark = bookmarkData
+                } catch {
+                    // Bookmark creation is optional
+                }
+
+                setCurrentFolder(url: grantedURL)
+            } else {
+                // User cancelled the access grant
+                return
+            }
+        } else {
+            setCurrentFolder(url: url)
+        }
+        #else
+        // For direct distribution (non-sandboxed), drag-and-drop works directly
+        if createBookmark {
+            // Try to start accessing (will return false for non-security-scoped URLs, which is fine)
+            isAccessingSecurityScopedResource = url.startAccessingSecurityScopedResource()
+        }
+
         setCurrentFolder(url: url)
+        #endif
     }
     
     /// Sets the current folder and populates its contents.
@@ -132,6 +188,20 @@ class BatchRenamerViewModel: ObservableObject {
         parentFolder = url
         files.removeAll()
         selectFolderContentsBasedOnToggle(processContents: self.processContents)
+    }
+
+    /// Clears the current folder and releases security-scoped resources.
+    func clearFolder() {
+        // Stop accessing security-scoped resource if needed
+        if isAccessingSecurityScopedResource, let folder = parentFolder {
+            folder.stopAccessingSecurityScopedResource()
+            isAccessingSecurityScopedResource = false
+        }
+
+        parentFolder = nil
+        parentFolderBookmark = nil
+        files.removeAll()
+        itemType = .none
     }
 
     // MARK: - Content Population
@@ -318,6 +388,7 @@ class BatchRenamerViewModel: ObservableObject {
         let renameType = self.itemType
         let input = self.inputField
         let processContents = self.processContents
+        let alreadyAccessingResource = self.isAccessingSecurityScopedResource
 
         let parsed = parseBaseNameAndNumber(input)
         let base = parsed?.base ?? input
@@ -336,8 +407,17 @@ class BatchRenamerViewModel: ObservableObject {
             var renameRecords: [RenameRecord] = []
 
             // Request access to the parent folder for file operations
-            if parent.startAccessingSecurityScopedResource() {
-                defer { parent.stopAccessingSecurityScopedResource() }
+            // Only start accessing if we're not already accessing (to avoid nested calls)
+            let needsAccess = !alreadyAccessingResource && parent.startAccessingSecurityScopedResource()
+            let hasAccess = alreadyAccessingResource || needsAccess
+
+            if hasAccess {
+                defer {
+                    // Only stop if we started it in this function
+                    if needsAccess {
+                        parent.stopAccessingSecurityScopedResource()
+                    }
+                }
 
                 if processContents && isFile {
                     // Renaming files inside subfolders: handle each subfolder separately

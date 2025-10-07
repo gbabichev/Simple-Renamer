@@ -62,9 +62,7 @@ struct Simple_RenamerApp: App {
 
                 // Button to clear the current file list and reset state, shortcut Cmd+L
                 Button(action: {
-                    viewModel.files.removeAll()
-                    viewModel.parentFolder = nil
-                    viewModel.itemType = .none
+                    viewModel.clearFolder()
                 }) {
                     Label("Clear List", systemImage: "arrow.uturn.left")
                 }
