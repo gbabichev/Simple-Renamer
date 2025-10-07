@@ -33,7 +33,16 @@ Say hello to <b>Simple Renamer</b> – the friendly Mac app that makes batch ren
 3. Preview the new names instantly.  
 4. Process! ✅ 
 
-
+## Automatic Numbering
+Simple Renamer will automatically append numbers to your files. For Example:
+<br>
+"Test" will produce Test1, Test2, Test3, etc.
+<br>
+"Test2" will produce Test2, Test3, Test4, etc. 
+<br>
+"Test01" will produce Test01, Test02, Test03. etc.
+<br>
+"Test001" will produce Test001, Test002, Test003, etc. 
 
 ## ⚠️ Usage Notes 
 
