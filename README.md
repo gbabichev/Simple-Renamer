@@ -80,6 +80,9 @@ open SimpleRenamer.xcodeproj
 
 ## 📝 Changelog
 
+### 1.0.5
+- Updated "Add Templates" logic. 
+
 ### 1.0.4
 - Added small UI popup when a batch rename is done. 
 

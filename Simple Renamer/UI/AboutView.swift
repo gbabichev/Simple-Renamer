@@ -9,14 +9,14 @@
  AboutView.swift provides the About screen for the Simple Renamer app.
  It displays app branding, version info, copyright, and a link to the author’s GitHub.
  This view is intended to inform users about the app and its creator.
-*/
+ */
 
 import SwiftUI
 
 struct LiveAppIconView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var refreshID = UUID()
-
+    
     var body: some View {
         Image(nsImage: NSApp.applicationIconImage)
             .id(refreshID) // force SwiftUI to re-evaluate the image
@@ -37,7 +37,7 @@ struct AboutView: View {
     var body: some View {
         // Main vertical stack arranging all elements with spacing
         VStack(spacing: 20) {
-
+            
             HStack(spacing: 10) {
                 Image("gbabichev")
                     .resizable()
@@ -48,7 +48,7 @@ struct AboutView: View {
                 
                 LiveAppIconView()
             }
-
+            
             // App name displayed prominently
             Text(Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "Name")
                 .font(.title)
@@ -58,14 +58,14 @@ struct AboutView: View {
                 .font(.footnote)
             
             // App version fetched dynamically from Info.plist; fallback to "1.0"
-            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"))")
                 .foregroundColor(.secondary)
             // Current year dynamically retrieved for copyright notice
-            Text("© \(String(Calendar.current.component(.year, from: Date()))) George Babichev")
+            Link("© \(String(Calendar.current.component(.year, from: Date()))) George Babichev", destination: URL(string: "https://georgebabichev.com")!)
                 .font(.footnote)
-                .foregroundColor(.secondary)
+                .foregroundColor(.accentColor)
             // Link to the author's GitHub profile for project reference
-            Link("GitHub", destination: URL(string: "https://github.com/gbabichev/Simple-Renamer")!)
+            Link("Website", destination: URL(string: "https://gbabichev.github.io/Simple-Renamer/")!)
                 .font(.footnote)
                 .foregroundColor(.accentColor)
         }

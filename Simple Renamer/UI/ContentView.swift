@@ -121,6 +121,14 @@ struct ContentView: View {
         }
     }
 
+    private func isDuplicateTemplate(_ name: String) -> Bool {
+        let trimmedLower = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return templatesState.contains { template in
+            let templateTrimmed = template.trimmingCharacters(in: .whitespacesAndNewlines)
+            return templateTrimmed.lowercased() == trimmedLower
+        }
+    }
+
 
     var body: some View {
             NavigationSplitView {
@@ -165,8 +173,19 @@ struct ContentView: View {
                                         .textFieldStyle(.plain)
                                         .onSubmit {
                                             // Trim whitespace on submit
-                                            templatesState[idx] = templatesState[idx]
-                                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                                            let trimmed = templatesState[idx].trimmingCharacters(in: .whitespacesAndNewlines)
+
+                                            // Check for duplicates (case-insensitive)
+                                            let duplicateExists = templatesState.enumerated().contains { otherIdx, otherName in
+                                                otherIdx != idx && otherName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == trimmed.lowercased()
+                                            }
+
+                                            if duplicateExists {
+                                                // Revert to previous value or generate unique name
+                                                templatesState[idx] = nextAvailableTemplateName(base: trimmed)
+                                            } else {
+                                                templatesState[idx] = trimmed
+                                            }
                                         }
                                     if hoveredIdx == idx {
                                                 Button {
@@ -234,23 +253,19 @@ struct ContentView: View {
                         .onSubmit {
                             let trimmed = newTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
                             guard !trimmed.isEmpty else { return }
-                            if templatesState.contains(trimmed) {
-                                addError = "Duplicate Entry"
-                            } else {
-                                withAnimation {
-                                    templatesState.append(trimmed)
-                                }
-                                newTemplate = ""
-                                addError = nil
-                                addFieldFocused = false
+
+                            let nameToAdd = isDuplicateTemplate(trimmed) ? nextAvailableTemplateName(base: trimmed) : trimmed
+                            withAnimation {
+                                templatesState.append(nameToAdd)
                             }
+                            newTemplate = ""
+                            addError = nil
+                            addFieldFocused = false
                         }
                         // Validate duplicates live while typing
                         .onChange(of: newTemplate) { _, value in
                             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !trimmed.isEmpty else { addError = nil; return }
-                            let exists = templatesState.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == trimmed.lowercased() }
-                            addError = exists ? "Duplicate Entry" : nil
+                            addError = (!trimmed.isEmpty && isDuplicateTemplate(trimmed)) ? "Duplicate Entry" : nil
                         }
 
                 }

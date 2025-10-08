@@ -16,8 +16,8 @@ struct Simple_RenamerApp: App {
     var body: some Scene {
         
         // MARK: - Main Window
-        
-        WindowGroup {
+
+        WindowGroup(id: "MainWindow") {
             ContentView()
                 .environmentObject(viewModel)
         }
@@ -43,6 +43,14 @@ struct Simple_RenamerApp: App {
 
             // Add custom commands after the New Item section
             CommandGroup(after: .newItem) {
+                // Button to open a new window, shortcut Cmd+N
+                Button(action: {
+                    openWindow(id: "MainWindow")
+                }) {
+                    Label("New Window", systemImage: "plus.rectangle.on.rectangle")
+                }
+                .keyboardShortcut("n", modifiers: .command)
+
                 // Button to open folder selection dialog, shortcut Cmd+O
                 Button(action: {
                     viewModel.selectFolder()
