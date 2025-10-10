@@ -44,8 +44,6 @@ class BatchRenamerViewModel: ObservableObject {
     @Published var inputField: String = ""
     /// The currently selected parent folder.
     @Published var parentFolder: URL?
-    /// Security-scoped bookmark data for sandboxed access to parent folder.
-    private var parentFolderBookmark: Data?
     /// Whether we're currently accessing a security-scoped resource.
     private var isAccessingSecurityScopedResource = false
     /// The error message to display, if any.
@@ -151,18 +149,6 @@ class BatchRenamerViewModel: ObservableObject {
                 let didStart = grantedURL.startAccessingSecurityScopedResource()
                 isAccessingSecurityScopedResource = didStart
 
-                // Create a bookmark for future access
-                do {
-                    let bookmarkData = try grantedURL.bookmarkData(
-                        options: .withSecurityScope,
-                        includingResourceValuesForKeys: nil,
-                        relativeTo: nil
-                    )
-                    parentFolderBookmark = bookmarkData
-                } catch {
-                    // Bookmark creation is optional
-                }
-
                 setCurrentFolder(url: grantedURL)
             } else {
                 // User cancelled the access grant
@@ -199,7 +185,6 @@ class BatchRenamerViewModel: ObservableObject {
         }
 
         parentFolder = nil
-        parentFolderBookmark = nil
         files.removeAll()
         itemType = .none
     }
@@ -607,13 +592,5 @@ class BatchRenamerViewModel: ObservableObject {
 
         let rawTemplates: [String] = files.map { $0.url.lastPathComponent }
         return normalizeTemplates(rawTemplates)
-    }
-
-    /// Convenience: JSON Data for templates discovered from subfolders (pretty-printed)
-    func encodeTemplatesFromSubfolders() throws -> Data {
-        let templates = try templatesFromSubfolders()
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(templates)
     }
 }
