@@ -9,17 +9,19 @@ import SwiftUI
 
 @main
 struct Simple_RenamerApp: App {
-    
+
     @StateObject private var viewModel = BatchRenamerViewModel()
     @Environment(\.openWindow) private var openWindow
+    @State private var showTutorial = !UserDefaults.standard.bool(forKey: "hasSeenTutorial")
 
     var body: some Scene {
         
         // MARK: - Main Window
 
         WindowGroup(id: "MainWindow") {
-            ContentView()
+            ContentView(showTutorial: $showTutorial)
                 .environmentObject(viewModel)
+                .frame(minWidth: 800, minHeight: 750)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 900, height: 720) 
@@ -89,6 +91,12 @@ struct Simple_RenamerApp: App {
             }
             
             CommandGroup(replacing: .help) {
+                Button {
+                    showTutorial = true
+                } label: {
+                    Label("Show Tutorial", systemImage: "lightbulb")
+                }
+
                 Button {
                     if let url = URL(string: "https://github.com/gbabichev/Simple-Renamer") {
                         NSWorkspace.shared.open(url)

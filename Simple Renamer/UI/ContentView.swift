@@ -14,11 +14,14 @@ import UniformTypeIdentifiers
 // Main UI for batch file renaming app with sidebar for templates and detail pane for file previews
 
 struct ContentView: View {
-    
+
+    // Tutorial state binding
+    @Binding var showTutorial: Bool
+
     // Track which template row is hovered for revealing row actions
     @State private var hoveredIdx: Int? = nil
 
-    
+
     // Used to programmatically control focus on base name input
     @FocusState private var baseNameFieldFocused: Bool
 
@@ -595,6 +598,13 @@ struct ContentView: View {
         }
         // Confirm reset templates
         .modifier(ResetConfirmationModifier(showResetConfirm: $showResetConfirm, resetAction: resetTemplatesToDefault))
+        // Tutorial overlay
+        .overlay {
+            if showTutorial {
+                TutorialView(isPresented: $showTutorial)
+                    .transition(.opacity)
+            }
+        }
 
     }
 

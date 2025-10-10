@@ -14,6 +14,7 @@ Say hello to <b>Simple Renamer</b> – the friendly Mac app that makes batch ren
 ## 🖥️ Screenshots 
 
 <p align="center">
+  <img src="Documentation/App2.png" width="400" alt="Drag & Drop"/>
   <img src="Documentation/App1.png" width="400" alt="Drag & Drop"/>
 </p>
 
@@ -62,7 +63,7 @@ It will **not** accept folders that contain files & folders.
 
 ## ⚙️ Installation
 
-Mac App Store
+<a href="https://apps.apple.com/us/app/simple-renamer/id6753720459">Mac App Store</a>
 
 Download from Releases. It's signed & notarized!
 
@@ -79,6 +80,9 @@ open SimpleRenamer.xcodeproj
 ```
 
 ## 📝 Changelog
+
+### 1.0.6
+- Added tutorial that opens on first app launch, and is available in the Menu Bar.
 
 ### 1.0.5
 - Updated "Add Templates" logic. 
