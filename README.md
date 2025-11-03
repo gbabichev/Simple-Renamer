@@ -81,6 +81,10 @@ open SimpleRenamer.xcodeproj
 
 ## 📝 Changelog
 
+### 1.0.7
+- Fixed: Dragging and dropping works more reliably. 
+- Fixed: Table columns can be resized. 
+
 ### 1.0.6
 - Added tutorial that opens on first app launch, and is available in the Menu Bar.
 
