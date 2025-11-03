@@ -167,7 +167,79 @@ class BatchRenamerViewModel: ObservableObject {
         setCurrentFolder(url: url)
         #endif
     }
-    
+
+    /// Handles file drops with proper sandbox permissions.
+    /// - Parameters:
+    ///   - fileURLs: Array of file URLs that were dropped
+    ///   - createBookmark: Whether to request sandbox access (true for App Store builds)
+    func addFilesFromDrop(fileURLs: [URL], createBookmark: Bool = true) {
+        guard let firstFile = fileURLs.first else { return }
+        let parentURL = firstFile.deletingLastPathComponent()
+
+        // Stop accessing previous security-scoped resource if needed
+        if isAccessingSecurityScopedResource, let oldFolder = parentFolder {
+            oldFolder.stopAccessingSecurityScopedResource()
+            isAccessingSecurityScopedResource = false
+        }
+
+        #if APPSTORE
+        // For sandboxed App Store builds, drag-and-drop doesn't provide security-scoped access
+        // We need to prompt the user with NSOpenPanel to get proper access to the parent folder
+        if createBookmark {
+            // Open a panel to let the user grant access to the parent folder
+            let panel = NSOpenPanel()
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.allowsMultipleSelection = false
+            panel.message = "Grant access to the folder containing these files"
+            panel.prompt = "Grant Access"
+            panel.directoryURL = parentURL
+
+            if panel.runModal() == .OK, let grantedURL = panel.url {
+                // Now we have a proper security-scoped URL
+                let didStart = grantedURL.startAccessingSecurityScopedResource()
+                isAccessingSecurityScopedResource = didStart
+
+                addFilesToBatch(fileURLs: fileURLs, parentFolder: grantedURL)
+            } else {
+                // User cancelled the access grant
+                return
+            }
+        } else {
+            addFilesToBatch(fileURLs: fileURLs, parentFolder: parentURL)
+        }
+        #else
+        // For direct distribution (non-sandboxed), drag-and-drop works directly
+        if createBookmark {
+            // Try to start accessing (will return false for non-security-scoped URLs, which is fine)
+            isAccessingSecurityScopedResource = parentURL.startAccessingSecurityScopedResource()
+        }
+
+        addFilesToBatch(fileURLs: fileURLs, parentFolder: parentURL)
+        #endif
+    }
+
+    /// Adds files to the batch renaming list.
+    /// - Parameters:
+    ///   - fileURLs: Array of file URLs to add
+    ///   - parentFolder: The parent folder URL
+    private func addFilesToBatch(fileURLs: [URL], parentFolder: URL) {
+        // Set parent folder if not already set
+        if self.parentFolder == nil {
+            self.parentFolder = parentFolder
+        }
+
+        // Add each file to the list
+        for fileURL in fileURLs {
+            let item = FileItem(url: fileURL, newName: "", parentFolder: fileURL.deletingLastPathComponent())
+            files.append(item)
+        }
+
+        itemType = .files
+        error = nil
+        updateProposedNames()
+    }
+
     /// Sets the current folder and populates its contents.
     /// - Parameter url: The URL of the selected folder.
     private func setCurrentFolder(url: URL) {

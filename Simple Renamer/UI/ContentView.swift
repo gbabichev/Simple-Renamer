@@ -630,53 +630,63 @@ struct ContentView: View {
     
     
     
-    
-    
+
+
     // MARK: - Drag-and-Drop Logic (Helper)
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         var didAccept = false
 
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { (item, error) in
-                    // Convert item (Data or String) to URL
-                    let url: URL?
-                    if let data = item as? Data {
-                        url = NSURL(absoluteURLWithDataRepresentation: data, relativeTo: nil) as URL?
-                    } else if let str = item as? String {
-                        url = URL(string: str)
-                    } else {
-                        url = nil
-                    }
+        Task {
+            var collectedURLs: [URL] = []
 
-                    guard let realURL = url else { return }
-
-                    DispatchQueue.main.async {
-                        // Folder drop: use the exact same logic as the toolbar button
-                        if realURL.hasDirectoryPath {
-                            // Clear any selected template first
-                            selectedTemplate = nil
-
-                            // Use the same logic as the toolbar button (with bookmark creation)
-                            viewModel.setFolderFromDrop(url: realURL, createBookmark: true)
-                            
-                            // Focus the input field (same as clicking Open Folder)
-                            baseNameFieldFocused = true
-                        } else {
-                            // File drop: add individual file to batch
-                            if viewModel.parentFolder == nil {
-                                viewModel.parentFolder = realURL.deletingLastPathComponent()
-                            }
-                            let item = FileItem(url: realURL, newName: "", parentFolder: realURL.deletingLastPathComponent())
-                            viewModel.files.append(item)
-                            viewModel.itemType = .files
-                            viewModel.error = nil
-                            viewModel.updateProposedNames()
+            // Collect all URLs from providers
+            for provider in providers {
+                if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                    do {
+                        if let data = try await provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) as? Data,
+                           let url = NSURL(absoluteURLWithDataRepresentation: data, relativeTo: nil) as URL? {
+                            collectedURLs.append(url)
+                        } else if let str = try await provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) as? String,
+                                  let url = URL(string: str) {
+                            collectedURLs.append(url)
                         }
+                    } catch {
+                        // Ignore errors for individual items
+                        continue
                     }
                 }
+            }
+
+            await MainActor.run {
+                guard !collectedURLs.isEmpty else { return }
+
+                // Separate folders from files
+                let folders = collectedURLs.filter { $0.hasDirectoryPath }
+                let files = collectedURLs.filter { !$0.hasDirectoryPath }
+
+                // Handle folder drops (only process the first folder if multiple are dropped)
+                if let firstFolder = folders.first {
+                    // Clear any selected template first
+                    self.selectedTemplate = nil
+
+                    // Use the same logic as the toolbar button (with bookmark creation)
+                    self.viewModel.setFolderFromDrop(url: firstFolder, createBookmark: true)
+
+                    // Focus the input field (same as clicking Open Folder)
+                    self.baseNameFieldFocused = true
+                }
+                // Handle file drops (use the new sandbox-aware function with all files at once)
+                else if !files.isEmpty {
+                    self.viewModel.addFilesFromDrop(fileURLs: files, createBookmark: true)
+                }
+            }
+        }
+
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                 didAccept = true
+                break
             }
         }
         return didAccept
