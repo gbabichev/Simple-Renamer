@@ -18,6 +18,9 @@ struct ContentView: View {
     // Tutorial state binding
     @Binding var showTutorial: Bool
 
+    // About overlay state binding
+    @Binding var showAbout: Bool
+
     // Track which template row is hovered for revealing row actions
     @State private var hoveredIdx: Int? = nil
 
@@ -604,6 +607,10 @@ struct ContentView: View {
                 TutorialView(isPresented: $showTutorial)
                     .transition(.opacity)
             }
+        }
+        // About overlay
+        .sheet(isPresented: $showAbout) {
+            AboutView()
         }
 
     }

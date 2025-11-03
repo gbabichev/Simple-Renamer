@@ -34,6 +34,8 @@ struct LiveAppIconView: View {
 
 /// A view presenting information about the app, including branding, version, copyright, and author link.
 struct AboutView: View {
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         // Main vertical stack arranging all elements with spacing
         VStack(spacing: 20) {
@@ -68,6 +70,17 @@ struct AboutView: View {
             Link("Website", destination: URL(string: "https://gbabichev.github.io/Simple-Renamer/")!)
                 .font(.footnote)
                 .foregroundColor(.accentColor)
+
+            // Close button
+            Button(action: {
+                dismiss()
+            }) {
+                Text("Close")
+                    .frame(minWidth: 80)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
         }
         .padding(40)
     }

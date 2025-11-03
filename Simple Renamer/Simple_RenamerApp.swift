@@ -13,30 +13,20 @@ struct Simple_RenamerApp: App {
     @StateObject private var viewModel = BatchRenamerViewModel()
     @Environment(\.openWindow) private var openWindow
     @State private var showTutorial = !UserDefaults.standard.bool(forKey: "hasSeenTutorial")
+    @State private var showAbout = false
 
     var body: some Scene {
         
         // MARK: - Main Window
 
         WindowGroup(id: "MainWindow") {
-            ContentView(showTutorial: $showTutorial)
+            ContentView(showTutorial: $showTutorial, showAbout: $showAbout)
                 .environmentObject(viewModel)
                 .frame(minWidth: 800, minHeight: 750)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 900, height: 720) 
-        
-        // MARK: - About Window
-        
-        Window("About Simple Renamer", id: "AboutWindow") {
-            AboutView()
-                // Unusually small frame size for the About window
-                .frame(width: 400, height: 400)
-        }
-        .windowResizability(.contentSize) // Makes window non-resizable and size == content
-        .defaultSize(width: 400, height: 400)
-        .windowStyle(.hiddenTitleBar)
-        
+        .defaultSize(width: 900, height: 720)
+
         // MARK: - Menu Bar Commands
         .commands {
             SidebarCommands() // Enables native show/hide keyboard shortcuts for the sidebar.
@@ -81,10 +71,10 @@ struct Simple_RenamerApp: App {
                 
             }
 
-            // Replace the default About menu item with a custom About window opener
+            // Replace the default About menu item with a custom About overlay
             CommandGroup(replacing: .appInfo) {
                 Button(action: {
-                    openWindow(id: "AboutWindow")
+                    showAbout = true
                 }) {
                     Label("About Simple Renamer", systemImage: "info.circle")
                 }
