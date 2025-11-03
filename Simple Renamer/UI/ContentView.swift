@@ -348,7 +348,7 @@ struct ContentView: View {
                                     .frame(minWidth: 80, maxWidth: 180, alignment: .leading)
                                     .lineLimit(1)
                             }
-                            .width(min: 80, ideal: 110, max: 180)
+                            .width(min: 80, ideal: 110)
                         }
                         // Display original and proposed names for each item
                         TableColumn("Original Name") { item in
@@ -357,7 +357,7 @@ struct ContentView: View {
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                         }
-                        .width(min: 150, ideal: 220, max: 400)
+                        .width(min: 150, ideal: 220)
                         TableColumn("New Name") { item in
                             Text(item.newName)
                                 .font(.callout)
@@ -365,7 +365,7 @@ struct ContentView: View {
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                         }
-                        .width(min: 120, ideal: 180, max: 400)
+                        .width(min: 120, ideal: 180)
                     }
                     // MARK: - Drag-and-Drop Handling
                     .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
